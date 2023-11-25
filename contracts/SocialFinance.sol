@@ -2,11 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract SocialFinance is Ownable {
-    using SafeMath for uint256;
-
     struct Borrower {
         bool isKYCCompleted;
     }
@@ -89,8 +86,8 @@ contract SocialFinance is Ownable {
         require(!application.isClosed, "Application is closed");
         // require(application.fundedAmount.add(msg.value) <= application.amount, "Funding exceeds loan amount");
 
-        application.contributions[msg.sender] = application.contributions[msg.sender].add(msg.value);
-        application.fundedAmount = application.fundedAmount.add(msg.value);
+        application.contributions[msg.sender] += msg.value;
+        application.fundedAmount += msg.value;
 
         if (application.fundedAmount == application.amount) {
             application.isFunded = true;
@@ -113,9 +110,9 @@ contract SocialFinance is Ownable {
         require(application.isFunded, "Loan application is not fully funded");
         require(!application.isClosed, "Loan application is already closed");
 
-        uint256 repaymentAmount = application.fundedAmount.add(application.fundedAmount.mul(application.interestRate).div(100));
-        uint256 platformCommission = repaymentAmount.mul(PLATFORM_COMMISSION_PERCENTAGE).div(100);
-        uint256 totalRepayable = repaymentAmount.add(platformCommission);
+        uint256 repaymentAmount = application.fundedAmount + (application.fundedAmount * application.interestRate) / 100;
+        uint256 platformCommission = (repaymentAmount * PLATFORM_COMMISSION_PERCENTAGE) / 100;
+        uint256 totalRepayable = repaymentAmount + platformCommission;
 
         require(msg.value == totalRepayable, "Incorrect repayment amount");
 
@@ -126,7 +123,7 @@ contract SocialFinance is Ownable {
             address lenderAddress = application.lenders[i];
             uint256 lenderContribution = application.contributions[lenderAddress];
             if (lenderContribution > 0) {
-                uint256 lenderRepayment = lenderContribution.add(lenderContribution.mul(application.interestRate).div(100));
+                uint256 lenderRepayment = lenderContribution + (lenderContribution * application.interestRate) / 100;
                 payable(lenderAddress).transfer(lenderRepayment);
                 emit RepaymentDistributed(_applicationId, lenderAddress, lenderRepayment);
             }
