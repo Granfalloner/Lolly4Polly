@@ -38,7 +38,7 @@ contract SocialFinance is Ownable {
     event RepaymentDistributed(uint256 applicationId, address lender, uint256 amount);
 
     // Constructor
-    constructor(address initialOwner) Ownable(initialOwner) {
+    constructor() Ownable() {
     }
 
     // Register borrower
