@@ -129,9 +129,6 @@ contract SocialFinance is Ownable {
             }
         }
 
-        // Transfer platform commission to the contract owner
-        payable(owner()).transfer(platformCommission);
-
         emit LoanApplicationClosed(_applicationId);
     }
 
@@ -148,5 +145,10 @@ contract SocialFinance is Ownable {
             application.isFunded,
             application.isClosed
         );
+    }
+    
+    function withdraw() public onlyOwner {
+        // Transfer platform commission to the contract owner
+        payable(owner()).transfer(address(this).balance);
     }
 }
