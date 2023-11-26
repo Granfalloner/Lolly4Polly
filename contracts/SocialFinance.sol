@@ -79,6 +79,7 @@ contract SocialFinance is Ownable {
     LoanApplication storage newApplication = loanApplications.push();
     newApplication.amount = _amount * 1e18;
     newApplication.interestRate = _interestRate;
+    newApplication.createdAt = block.timestamp;
     newApplication.borrower = msg.sender;
     newApplication.fundedAmount = 0;
     newApplication.isFunded = false;
@@ -153,8 +154,8 @@ contract SocialFinance is Ownable {
     }
 
 
-    // Getter function for loan application details (optional)
-    function getLoanApplicationDetails(uint256 _applicationId) public view returns (uint256, uint256, address, uint256, bool, bool) {
+    // Getter function for loan application details
+    function getLoanApplicationDetails(uint256 _applicationId) external view returns (uint256, uint256, address, uint256, bool, bool) {
         require(_applicationId < loanApplications.length, "Invalid application ID");
         LoanApplication storage application = loanApplications[_applicationId];
         return (
@@ -167,6 +168,41 @@ contract SocialFinance is Ownable {
         );
     }
     
+    // Getter function for lendere repayment details
+    function getLenderRepayment(address lenderAddress, uint256 _applicationId) external view returns (uint256 lenderRepayment) {
+        require(_applicationId < loanApplications.length, "Invalid application ID");
+        LoanApplication storage application = loanApplications[_applicationId];
+        Contribution storage lenderContribution = application.contributions[lenderAddress];
+        if (lenderContribution.amount > 0) {
+            uint256 lendDuration = block.timestamp - lenderContribution.date;
+            lenderRepayment = lenderContribution.amount + (lenderContribution.amount * lendDuration * application.interestRate) / DENOMINATOR;
+        }
+    }
+
+    // Getter function for repayment details 
+    function getRepayAmount(uint256 _applicationId) external view returns (uint256 totalRepayable) {
+        require(_applicationId < loanApplications.length, "Invalid application ID");
+        LoanApplication storage application = loanApplications[_applicationId];
+        require(!application.isClosed, "Loan application is already closed");
+
+        uint256 repaymentAmount = 0;
+
+        // Iterate lenders and calculation due amounts
+        for (uint256 i = 0; i < application.lenders.length; i++) {
+            address lenderAddress = application.lenders[i];
+            Contribution storage lenderContribution = application.contributions[lenderAddress];
+            if (lenderContribution.amount > 0) {
+                uint256 lendDuration = block.timestamp - lenderContribution.date;
+                uint256 lenderRepayment = lenderContribution.amount + (lenderContribution.amount * lendDuration * application.interestRate) / DENOMINATOR;
+                repaymentAmount += lenderRepayment;
+            }
+        }
+
+        uint256 duration = block.timestamp - application.createdAt;
+        uint256 platformCommission = (application.fundedAmount * PLATFORM_COMMISSION_PERCENTAGE * duration) / DENOMINATOR;
+        totalRepayable = repaymentAmount + platformCommission;
+    }
+
     function withdraw() public onlyOwner {
         // Transfer platform commission to the contract owner
         payable(owner()).transfer(address(this).balance);
